@@ -2,7 +2,8 @@
 
 
 #
-import numpy
+import pandas
+import seaborn
 
 import torch
 from torch import nn
@@ -17,7 +18,7 @@ class Skeleton(nn.Module):
     Supports Numerical Data Only!
     """
 
-    def __init__(self, layers, layers_dimensions, layers_kwargs, activators, drops, verbose=-1):
+    def __init__(self, layers, layers_dimensions, layers_kwargs, activators, drops, verbose=-1, device=None):
 
         super().__init__()
 
@@ -41,6 +42,8 @@ class Skeleton(nn.Module):
         self.train_losses = None
         self.validation_losses = None
 
+        self.device = device
+
     def set_layers(self, input_shape):
 
         self.input_shape = input_shape
@@ -58,6 +61,8 @@ class Skeleton(nn.Module):
             input_shape = self._layers_dimensions[j]
 
         self.layers = nn.Sequential(*layers)
+        if self.device is not None:
+            self.layers.to(device=self.device)
         self.n = len(self.layers)
 
     def forward(self, x):
@@ -104,12 +109,12 @@ class Skeleton(nn.Module):
 
                 if phase == 'train':
                     train_lost = single_loss.item()
-                    self.train_losses.append(single_loss)
+                    self.train_losses.append(train_lost)
                     single_loss.backward()
                     self.optimizer.step()
                 else:
                     validation_lost = single_loss.item()
-                    self.validation_losses.append(single_loss)
+                    self.validation_losses.append(validation_lost)
 
             if self._verbose > 0:
                 if (i % self._verbose) == 1:
@@ -120,6 +125,16 @@ class Skeleton(nn.Module):
     def predict(self, x):
 
         output = self(x)
-        result = output.detach().numpy()
+        result = output.detach()
+
+        if self.device.type == 'cuda':
+            result = result.cpu()
 
         return result
+
+    def plot(self):
+
+        train = pandas.DataFrame(data={'epoch': range(self.epochs), 'loss': self.train_losses, 'on': ['train'] * self.epochs})
+        validation = pandas.DataFrame(data={'epoch': range(self.epochs), 'loss': self.validation_losses, 'on': ['validation'] * self.epochs})
+        result = pandas.concat((train, validation), axis=0, ignore_index=True)
+        seaborn.lineplot(x='epoch', y='loss', hue='on', data=result, palette="tab10")

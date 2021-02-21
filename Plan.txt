@@ -22,7 +22,7 @@ FDPT: https://www.kaggle.com/gauravsahani/food-demand-prediction-dataset
 HPMH: https://www.kaggle.com/jassican/house-price-prediction-challenge-machine-hack
 
 Group 2. NNs (no thethWyrm, pure):
-DCSH:
+DCSH: https://www.kaggle.com/sumanthvrao/daily-climate-time-series-data
 WTTS: https://www.kaggle.com/c/web-traffic-time-series-forecasting
 TTSI: https://www.kaggle.com/volpatto/temperature-timeseries-for-some-brazilian-cities
 POPS: https://www.kaggle.com/census/population-time-series-data
