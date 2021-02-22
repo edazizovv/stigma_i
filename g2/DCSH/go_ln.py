@@ -40,18 +40,23 @@ data_test = data_test.set_index('date')
 thresh = data_train.shape[0]
 
 data = pandas.concat((data_train, data_test), axis=0)
+data.loc[data['meanpressure'] <= 0, 'meanpressure'] = data['meanpressure'].mean()
 
 data[[x + '_LAG1' for x in data.columns.values]] = data.shift(periods=1)
-data = data.dropna()
+# data = data.dropna()
+data = data.iloc[1:, :].copy()
 
 data_log = data.copy()
 for col in [x for x in data.columns.values if 'LAG' not in x]:
     data_log[col] = log_verse(data[col].values, data[col + '_LAG1'].values)
 data_log[[x for x in data_log.columns.values if 'LAG' in x]] = data_log[[x for x in data_log.columns.values if 'LAG' not in x]].shift(periods=1)
-data_log = data_log.dropna()
+# data_log = data_log.dropna()
+data_log = data_log.iloc[1:, :].copy()
 
-data_train = data.iloc[:thresh, :]
-data_test = data.iloc[thresh:, :]
+thresh -= 2
+
+data_train = data_log.iloc[:thresh, :]
+data_test = data_log.iloc[thresh:, :]
 
 target = 'meantemp'
 factors = [x for x in data_train.columns.values if 'LAG' in x]
@@ -79,45 +84,37 @@ activators = [nn.ReLU] * 2
 drops = [0.00, 0.00]
 verbose = 100
 """
-
+"""
 layers = [nn.RNN, nn.Linear]
 layers_dimensions = [10, 1]
 layers_kwargs = [{'nonlinearity': 'relu'}, {}]
 activators = [None, nn.ReLU]
 drops = [0.0, 0.0]
 verbose = 100
-
+"""
 """
 layers = [nn.GRU, nn.Linear]
-layers_dimensions = [12, 1]
+layers_dimensions = [20, 1]
 layers_kwargs = [{}, {}]
 activators = [None, nn.ReLU]
 drops = [0.05, 0.0]
 verbose = 100
 """
-"""
+
 layers = [nn.LSTM, nn.Linear]
-layers_dimensions = [100, 1]
+layers_dimensions = [10, 1]
 layers_kwargs = [{}, {}]
 activators = [None, nn.ReLU]
-drops = [0.2, 0.0]
+drops = [0.0, 0.0]
 verbose = 100
-"""
-"""
-layers = [nn.LSTM, nn.LSTM, nn.LSTM, nn.LSTM, nn.Linear]
-layers_dimensions = [100, 100, 100, 50, 1]
-layers_kwargs = [{}, {}, {}, {}, {}]
-activators = [None, None, None, None, nn.ReLU]
-drops = [0.4, 0.4, 0.4, 0.4, 0.0]
-verbose = 100
-"""
+
+
+
 model = Skeleton(layers, layers_dimensions, layers_kwargs, activators, drops, verbose, device=device)
 
 optimizer = torch.optim.Adam
 optimizer_kwargs = {'lr': 0.001}
 loss_function = nn.MSELoss()
-
-torch.tensor(x_train, dtype=torch.float)
 
 window = 10
 
@@ -125,40 +122,43 @@ xx_train = []
 xx_val = []
 yy_train = []
 yy_val = []
-for j in range(x_train.shape[0] - window):
-    xx_train.append(x_train[-j - window - 1:-j - 1, :].reshape(1, window, x_train.shape[1]))
-    yy_train.append(y_train[-j - window - 1:-j - 1].reshape(1, window, 1))
-for j in range(x_val.shape[0] - window):
-    xx_val.append(x_val[-j - window - 1:-j - 1, :].reshape(1, window, x_val.shape[1]))
-    yy_val.append(y_val[-j - window - 1:-j - 1].reshape(1, window, 1))
+for j in range(x_train.shape[0] - window + 1):
+    xx_train.append(x_train[j:j + window, :].reshape(1, window, x_train.shape[1]))
+    yy_train.append(y_train[j:j + window].reshape(1, window, 1))
+for j in range(x_val.shape[0] - window + 1):
+    xx_val.append(x_val[j:j + window, :].reshape(1, window, x_val.shape[1]))
+    yy_val.append(y_val[j:j + window].reshape(1, window, 1))
 xx_train = numpy.concatenate(xx_train, axis=0)
 xx_val = numpy.concatenate(xx_val, axis=0)
 yy_train = numpy.concatenate(yy_train, axis=0)
 yy_val = numpy.concatenate(yy_val, axis=0)
-xx_train = torch.tensor(xx_train, dtype=torch.float, device=device)
-xx_val = torch.tensor(xx_val, dtype=torch.float, device=device)
-yy_train = torch.tensor(yy_train, dtype=torch.float, device=device)
-yy_val = torch.tensor(yy_val, dtype=torch.float, device=device)
+xx_train = torch.tensor(xx_train, dtype=torch.float)
+xx_val = torch.tensor(xx_val, dtype=torch.float)
+yy_train = torch.tensor(yy_train, dtype=torch.float)
+yy_val = torch.tensor(yy_val, dtype=torch.float)
 
 # yy_train[:20, -1, :]
 
-model.fit(xx_train, yy_train, xx_val, yy_val, optimizer, optimizer_kwargs, loss_function, epochs=10000)
+model.fit(xx_train, yy_train, xx_val, yy_val, optimizer, optimizer_kwargs, loss_function, epochs=1000)
 
 yy_train_hat = model.predict(x=xx_train)
 yy_val_hat = model.predict(x=xx_val)
 
-if device.type == 'cuda':
-    yy_train = yy_train.cpu()
-    yy_val = yy_val.cpu()
-r2_train = r2_score(y_true=yy_train.numpy()[:, -1, :], y_pred=yy_train_hat.numpy()[:, -1, :])
-r2_val = r2_score(y_true=yy_val.numpy()[:, -1, :], y_pred=yy_val_hat.numpy()[:, -1, :])
-rmse_train = mean_squared_error(y_true=yy_train.numpy()[:, -1, :], y_pred=yy_train_hat.numpy()[:, -1, :])
-rmse_val = mean_squared_error(y_true=yy_val.numpy()[:, -1, :], y_pred=yy_val_hat.numpy()[:, -1, :])
+y_train_bench = log_inverse(yy_train[:, -1, :].numpy().flatten(), data[target + '_LAG1'].values[10:thresh+1])
+y_train_hat = log_inverse(yy_train_hat[:, -1, :].numpy().flatten(), data[target + '_LAG1'].values[10:thresh+1])
+y_val_bench = log_inverse(yy_val[:, -1, :].numpy().flatten(), data[target + '_LAG1'].values[thresh+10:])
+y_val_hat = log_inverse(yy_val_hat[:, -1, :].numpy().flatten(), data[target + '_LAG1'].values[thresh+10:])
 
-a = pandas.DataFrame(data={'tt': numpy.arange(start=0, stop=yy_train.shape[0]), 'value': yy_train.numpy()[:, -1, :].flatten(), 'kind': ['true'] * yy_train.shape[0], 'fold': ['train'] * yy_train.shape[0]})
-b = pandas.DataFrame(data={'tt': numpy.arange(start=yy_train.shape[0], stop=yy_train.shape[0]+yy_val.shape[0]), 'value': yy_val.numpy()[:, -1, :].flatten(), 'kind': ['true'] * yy_val.shape[0], 'fold': ['val'] * yy_val.shape[0]})
-c = pandas.DataFrame(data={'tt': numpy.arange(start=0, stop=yy_train_hat.shape[0]), 'value': yy_train_hat.numpy()[:, -1, :].flatten(), 'kind': ['hat'] * yy_train_hat.shape[0], 'fold': ['train'] * yy_train_hat.shape[0]})
-d = pandas.DataFrame(data={'tt': numpy.arange(start=yy_train_hat.shape[0], stop=yy_train_hat.shape[0]+yy_val_hat.shape[0]), 'value': yy_val_hat.numpy()[:, -1, :].flatten(), 'kind': ['hat'] * yy_val_hat.shape[0], 'fold': ['val'] * yy_val_hat.shape[0]})
+
+r2_train = r2_score(y_true=y_train_bench, y_pred=y_train_hat)
+r2_val = r2_score(y_true=y_val_bench, y_pred=y_val_hat)
+rmse_train = mean_squared_error(y_true=y_train_bench, y_pred=y_train_hat)
+rmse_val = mean_squared_error(y_true=y_val_bench, y_pred=y_val_hat)
+
+a = pandas.DataFrame(data={'tt': numpy.arange(start=0, stop=yy_train.shape[0]), 'value': y_train_bench, 'kind': ['true'] * yy_train.shape[0], 'fold': ['train'] * yy_train.shape[0]})
+b = pandas.DataFrame(data={'tt': numpy.arange(start=yy_train.shape[0], stop=yy_train.shape[0]+yy_val.shape[0]), 'value': y_val_bench, 'kind': ['true'] * yy_val.shape[0], 'fold': ['val'] * yy_val.shape[0]})
+c = pandas.DataFrame(data={'tt': numpy.arange(start=0, stop=yy_train_hat.shape[0]), 'value': y_train_hat, 'kind': ['hat'] * yy_train_hat.shape[0], 'fold': ['train'] * yy_train_hat.shape[0]})
+d = pandas.DataFrame(data={'tt': numpy.arange(start=yy_train_hat.shape[0], stop=yy_train_hat.shape[0]+yy_val_hat.shape[0]), 'value': y_val_hat, 'kind': ['hat'] * yy_val_hat.shape[0], 'fold': ['val'] * yy_val_hat.shape[0]})
 result = pandas.concat((a, b, c, d), axis=0, ignore_index=True)
 
 # pyplot.plot(a['tt'].values, a['value'].values, 'black')
