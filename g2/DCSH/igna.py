@@ -48,7 +48,9 @@ transform = transform_logratios
 inverse_transform = inverse_transform_logratios
 
 scaler = MinMaxScaler()
-transformed = scaler.fit_transform(data.loc[:, ["humidity","wind","pressure"]])
+# transformed = scaler.fit_transform(data.loc[:, ["humidity","wind","pressure"]])
+scaler.fit(data.loc[:, ["humidity","wind","pressure"]].values[:len(data_train)])
+transformed = scaler.transform(data.loc[:, ["humidity","wind","pressure"]])
 
 transformed = pd.DataFrame(transformed, columns = ["humidity_s","wind_s","pressure_s"])
 transformed.head()
@@ -137,7 +139,7 @@ series = [logratio_temp, humidity_s, wind_s, pressure_s]
 # series = [temp, humidity, wind, pressure]
 prev_known = [False, False, False, False]
 
-lookback = 6  # Window_in
+lookback = 10  # Window_in
 
 X, y = winnowing (series, target=0, prev_known=prev_known,
                   W_in=lookback)

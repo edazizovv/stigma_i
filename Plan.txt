@@ -32,3 +32,8 @@ STAI: https://www.kaggle.com/aishu200023/stackindex
 EPCO: https://www.kaggle.com/uciml/electric-power-consumption-data-set
 HHEA: https://www.kaggle.com/jaganadhg/house-hold-energy-data
 FOFI: https://www.kaggle.com/gustavomodelli/forest-fires-in-brazil
+
+[Legat Rikke] 3/10/2021 Note:
+On several datasets it is noticed that adding exogenous series decreases performance.
+Please, check for relations with classical VIFs & model-specific VIFs.
+Plus, see Granger causality test.
