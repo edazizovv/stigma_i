@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "stigma_i"
+version = "0.0.1"
+description = "Base NN examination: I"
+authors = [
+  "edazizovv",
+]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "stigma_i"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
